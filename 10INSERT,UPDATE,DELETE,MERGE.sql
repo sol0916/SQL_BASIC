@@ -1,0 +1,134 @@
+--INSERT, UPDATE, DELETE문을 작성하면 COMMIT명령으로 실제 반영을 처리하는 작업이 필요합니다
+--INSERT
+
+--테이블 구조 확인
+DESC DEPARTMENTS;
+
+--전체행을 넣는 경우
+INSERT INTO DEPARTMENTS VALUES(300, 'DEV', NULL, 1700);
+--선택적으로 넣는 경우
+INSERT INTO DEPARTMNETS(DEPARTMENT_ID, DEPARTMENT_NAME) VALUES(310, 'SYSTEM');
+
+
+SELECT * FROM DEPARTMENTS;
+
+ROLLBACK;
+
+--사본테이블(테이블 구조만 복사)
+CREATE TABLE EMPS AS (SELECT * FROM EMPLOYEES WHERE 1 = 2);
+
+--서브쿼리절 인서트
+--전체 컬럼을 맞춤
+INSERT INTO EMPS (SELECT * FROM EMPLOYEES WHERE JOB_ID = 'IT_PROG');
+INSERT INTO EMPS (EMPLOYEE_ID, LAST_NAME, EMAIL, HIRE_DATE, JOB_ID)
+VALUES (200, 
+       (SELECT LAST_NAME FROM EMPLOYEES WHERE EMPLOYEE_ID=200),
+       (SELECT EMAIL FROM EMPLOYEES WHERE EMPLOYEE_ID = 200),
+       SYSDATE,
+       'TEST'
+       );
+       
+SELECT * FROM EMPS;
+DESC EMPS;
+
+
+--------------------------------------------------------------------------------
+
+--UPDATE문장
+SELECT * FROM EMPS;
+
+SELECT * FROM EMPS WHERE EMPLOYEE_ID = 103;
+
+--EX1
+UPDATE EMPS 
+SET HIRE_DATE = SYSDATE, 
+    LAST_NAME = 'HONG',
+    SALARY = SALARY + 1000 --기존 값 사용 가능
+WHERE EMPLOYEE_ID = 103; 
+--WHERE절 필수 WHERE절 없이 데이터 입력하면 전체 데이터가 바뀜 (주의)
+
+
+--EX2
+UPDATE EMPS
+SET COMMISSION_PCT = 0.1
+WHERE JOB_ID IN ('IT_PROG', 'SA_MAN');
+
+--EX3 : ID = 200번인 사람을 103번의 급여로 변경
+UPDATE EMPS
+SET SALARY = (SELECT SALARY FROM EMPS WHERE EMPLOYEE_ID = 103)
+WHERE EMPLOYEE_ID = 200;
+
+--EX4 :
+--특이한 문법 (같은 값을 여러개 넣어줄 때)
+UPDATE EMPS
+SET (JOB_ID, SALARY, COMMISSION_PCT) = 
+    (SELECT JOB_ID, SALARY, COMMISSION_PCT FROM EMPS WHERE EMPLOYEE_ID = 103)
+WHERE EMPLOYEE_ID = 200;
+
+COMMIT;
+
+--------------------------------------------------------------------------------
+
+--DELETE구문
+--테이블 복사 + 데이터 복사
+CREATE TABLE DEPTS AS (SELECT * FROM DEPARTMENTS WHERE 1=1);
+
+SELECT * FROM DEPTS;
+SELECT * FROM EMPS;
+
+--EX1 삭제할 때는 꼭 PK를 이용합니다
+DELETE FROM EMPS WHERE EMPLOYEE_ID = 200;
+DELETE FROM EMPS WHERE SALARY >= 4000; -- 해당 열 전부 지워짐 주의
+ROLLBACK;
+
+--EX2 서브쿼리 이용 가능 (잘 사용하지는 않음)
+DELETE FROM EMPS WHERE DEPARTMENT_ID = 
+                (SELECT DEPARTMENT_ID FROM DEPARTMENTS WHERE DEPARTMENT_NAME = 'IT');
+
+--EMPLOYEES가 60번 DATA를 참고하고 있기 때문에 삭제 불가
+DELETE FROM DEPARTMENTS WHERE DEPARTMENT_ID = 60; --삭제되지 않음             
+
+
+--------------------------------------------------------------------------------
+
+--MERGE문
+--두 테이블을 비교해서 데이터가 있으면 UPDATE, 없으면 INSERT
+SELECT * FROM EMPS;
+
+--MERGE1
+MERGE INTO EMPS E1
+USING(SELECT * FROM EMPLOYEES WHERE JOB_ID IN ('IT_PROG', 'SA_MAN')) E2
+ON (E1.EMPLOYEE_ID = E2.EMPLOYEE_ID)
+WHEN MATCHED THEN
+    UPDATE SET E1.HIRE_DATE = E2.HIRE_DATE, --테이블 명 생략
+               E1.SALARY = E2.SALARY,
+               E1.COMMISSION_PCT = E2.COMMISSION_PCT --가지고 온 데이터를 사용하기 때문에 WHERE조건 없어도 됨
+WHEN NOT MATCHED THEN
+    INSERT VALUES (E2.EMPLOYEE_ID, 
+                   E2.FIRST_NAME,
+                   E2.LAST_NAME,
+                   E2.EMAIL,
+                   E2.PHONE_NUMBER,
+                   E2.HIRE_DATE,
+                   E2.JOB_ID,
+                   E2.SALARY,
+                   E2.COMMISSION_PCT,
+                   E2.MANAGER_ID,
+                   E2.DEPARTMENT_ID);
+                   
+                   
+--MERGE2
+MERGE INTO EMPS E
+USING DUAL
+ON (E.EMPLOYEE_ID = 103) --PK만 들어가야 함
+WHEN MATCHED THEN
+    UPDATE SET LAST_NAME = 'DEMO'
+WHEN NOT MATCHED THEN
+    INSERT(EMPLOYEE_ID, 
+           LAST_NAME,
+           EMAIL,
+           HIRE_DATE,
+           JOB_ID) VALUES(1000, 'DEMO', 'DEMO', SYSDATE, 'DEMO');
+           
+DELETE FROM EMPS WHERE EMPLOYEE_ID = 103;
+SELECT * FROM EMPS;

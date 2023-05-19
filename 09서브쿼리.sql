@@ -187,3 +187,4 @@ ON D.DEPARTMENT_ID = E.DEPARTMENT_ID;
 --단일행(대소비교) VS 다중행 서브쿼리(IN, ANY, ALL)
 --스칼라쿼리 - LEFT JOIN과 같은 역할, 한번에 1개의 컬럼을 가져올 때 
 --인라인 뷰 - FROM에 들어가는 가짜 테이블
+
